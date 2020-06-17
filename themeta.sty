@@ -1,0 +1,74 @@
+\NeedsTeXFormat{LaTeX2e}
+\RequirePackage{expl3,xparse}
+
+\ProvidesExplPackage {themeta}{ 2020/06/17 }{ 1.1.0 }
+  { Allows meta info to be stored and used akin to author and title. }
+
+\RequirePackage { xspace }
+
+\prop_new:N \g__meta_dict_prop
+\seq_new:N  \g__meta_prefix_seq
+
+% --- Takes a list of key-value arguments, and assigns these within the
+%     internal dictionary. Key-value arguments can be nested.
+
+\NewDocumentEnvironment { setup }{ +b }
+  { \keyval_parse:NNn \use_none:n \meta_subset:nn { #1 } }
+  { }
+
+
+% --- Take a single 'meta' value, and add into the dictionary
+
+\cs_new:Nn \meta_set:n {
+    % Construct key from prefixes
+    \exp_args:NNx   \str_set:Nn  \l_tmpa_str { \seq_use:Nn \g__meta_prefix_seq { . } }
+    % If key already exists, then get token-list and append ', '
+    % Otherwise, ensure temporary token-list is clear
+    \prop_get:NVNTF \g__meta_dict_prop \l_tmpa_str \l_tmpa_tl
+        { \tl_put_right:Nn \l_tmpa_tl {,~} }
+        { \tl_gclear:N     \l_tmpa_tl }
+    % Parse the values based on the last prefix
+    \seq_get_right:NN \g__meta_prefix_seq \l_tmpb_tl
+    \exp_args:NNf \tl_put_right:Nn \l_tmpa_tl {
+        \str_case:VnF \l_tmpb_tl {
+            { altitude } { \SI{#1}{\ft} }
+            { size     } { \SI{#1}{\inch} }
+            { length   } { \SI{#1}{\mm} }
+            { diameter } { \SI{#1}{\mm} }
+            { weight   } { \SI{#1}{\kg} }
+        }
+        { #1 }
+    }
+    % Put the modified / new token list into the property list
+    \exp_args:NNoo \prop_gput:Nnn \g__meta_dict_prop \l_tmpa_str \l_tmpa_tl
+}
+
+
+% --- Take a key-value 'meta' info pair, use the key as a prefix,
+%     and parse all the values individually.
+
+\cs_new:Nn \meta_subset:nn {
+    \seq_put_right:Nn \g__meta_prefix_seq { #1 }
+    \keyval_parse:NNn
+        \meta_set:n
+        \meta_subset:nn
+        { #2 }
+    \seq_pop_right:NN \g__meta_prefix_seq \l_tmpa_tl
+}
+
+
+% --- Access the meta info property list by the given key.
+%     Raise an error if the key doesn't exist.
+
+\NewDocumentCommand \The { o m }{
+  \prop_get:NnNTF \g__meta_dict_prop { #2 } \l_tmpa_tl
+    { \tl_use:N \l_tmpa_tl }
+    { \IfValueTF { #1 }{ #1 }{ ??? } }  % <- Throw error message?
+  \xspace
+}
+
+\NewDocumentCommand \ifThe { m }{
+  \prop_get:NnNTF \g__meta_dict_prop { #1 } \l_tmpa_tl
+    { \iftrue }
+    { \iffalse }
+}
