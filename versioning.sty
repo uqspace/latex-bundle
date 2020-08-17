@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\RequirePackage{expl3,xparse}
+\RequirePackage{expl3,xparse,etoolbox}
 
 \ProvidesExplPackage {versioning}{ 2020/04/12 }{ 1.0.0 }
   { Provides a versioning table for LaTeX documents. }
@@ -23,7 +23,15 @@
   \arabic{ major version } . \arabic{ minor version } . \arabic{ patch version }
 }
 
-\NewDocumentEnvironment { version }{ O{ 0 } }
+\preto\thepatchversion{\themajorversion.\theminorversion.}
+
+\NewDocumentEnvironment { version }{ }
+  {
+    \addtocounter   { patch version }{ -1 }
+    \refstepcounter { patch version }
+  }{ }
+
+\NewDocumentEnvironment { versions }{ O{ 0 } }
   {
     \setversion { #1 }
     \clist_map_function:nN { major, minor, patch } \__ver_create_commands:n
@@ -35,6 +43,7 @@
   {
     \bottomrule
     \end{tabular}\end{table}
+    \begin{version}\label{ver:latest}\end{version}
     \clist_map_function:nN { major, minor, patch } \cs_undefine:c
   }
 
