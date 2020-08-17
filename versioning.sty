@@ -9,9 +9,9 @@
 \RequirePackage { booktabs }
 \RequirePackage { makecell }
 
-\newcounter { majorversion }
-\newcounter { minorversion }[ majorversion ]
-\newcounter { patchversion }[ minorversion ]
+\newcounter { major version }
+\newcounter { minor version }[ major version ]
+\newcounter { patch version }[ minor version ]
 
 \str_new:N \g__ver_date_str
 
@@ -20,7 +20,7 @@
 }
 
 \NewDocumentCommand \theversion { }{
-  \themajorversion.\theminorversion.\thepatchversion
+  \arabic{ major version } . \arabic{ minor version } . \arabic{ patch version }
 }
 
 \NewDocumentEnvironment { version }{ O{ 0 } }
@@ -41,7 +41,6 @@
 \NewDocumentCommand \setversion { m }
   {
     \seq_set_split:Nnn \l_tmpa_seq . { #1 }
-    \seq_show:N \l_tmpa_seq
     % TODO: Check if length > 3 for error checking
     \clist_map_inline:nn { major, minor, patch }{
       \seq_pop_left:NNTF \l_tmpa_seq \l_tmpa_tl
