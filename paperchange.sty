@@ -1,0 +1,119 @@
+\NeedsTeXFormat{LaTeX2e}
+\RequirePackage{expl3,xparse,l3keys2e}
+\RequirePackage[showframe]{geometry}
+
+%% ============================================================================
+%%                          ~~~ CLASS META-INFO ~~~
+%% ____________________________________________________________________________
+
+\ProvidesExplPackage
+  {paperchange}                                                 % - Name
+  {2020/05/19}                                                  % - Date
+  {1.0.0}                                                       % - Version
+  {Allows for changing of paper size in pdfLaTeX}               % - Description
+
+\keys_define:nn { paper_options }{
+  margin .dim_gset:N = \defaultmargin,
+  margin .initial:n  = { 20 mm },
+  unknown .code:n = {
+    % \PassOptionsToClass{\CurrentOption}{article}
+  }
+}
+
+\ProcessKeysOptions { paper_options }
+
+\dim_const:Nn \c_pchng_refHeight_dim { \the\pdfpageheight }
+\dim_const:Nn \c_pchng_refWidth_dim  { \the\pdfpagewidth  }
+
+\prop_new:N \g_pchng_pages_prop
+
+\msg_new:nnn
+  { Pages }
+  { AlreadyDefined }
+  { The~page~size~#1~is~already~defined }
+\msg_new:nnn
+  { Pages }
+  { InvalidOrientation }
+  { Invalid~orientation~`#1`,~choose~`port`~or~`land` }
+
+
+\prg_new_conditional:Nnn \if_printed: { T, F, TF }{
+  \prg_return_false:
+}
+
+\dim_new:N  \commentmargin
+\dim_set:Nn \commentmargin { 50 mm }
+
+
+% --- Define a new pagesize
+
+\NewDocumentCommand \newpagesize { mmm }{
+  % Sort the dimensions; a <- short, b <- long
+  \dim_set:Nn \l_tmpa_dim { \dim_min:nn { #2 } { #3 } }
+  \dim_set:Nn \l_tmpb_dim { \dim_max:nn { #2 } { #3 } }
+  % Add dimensions to comma list
+  \clist_clear:N \l_tmpa_clist
+  \exp_args:NNV \clist_put_right:Nn \l_tmpa_clist { \dim_use:N \l_tmpa_dim }
+  \exp_args:NNV \clist_put_right:Nn \l_tmpa_clist { \dim_use:N \l_tmpb_dim }
+  % Raise warning if page size already defined
+  \prop_if_in:NnT \g_pchng_pages_prop { #1 }
+    { \msg_warning:nnn { Pages }{ AlreadyDefined }{ #1 } }
+  % Put page size into global property list
+  \exp_args:NNnV \prop_gput:Nnn \g_pchng_pages_prop { #1 } \l_tmpa_clist
+}
+
+
+% --- Sets the current page size and orientation. Mandatory argument is the
+%     page size, as is set by `newpagesize`, while the optional argument is
+%     'port' or 'land' for portrait and landscape respectively. Default is
+%     'port'.
+
+\NewDocumentCommand \setpagesize { O{} m !O{port} }{
+  \str_case:nnF { #2 } {
+    { A4 } { \setkeys { Gm }{ paper = a4paper } }
+    { A3 } { \setkeys { Gm }{ paper = a3paper } }
+  } {  }  % Only hardcode these pages in for now
+
+  \setkeys { Gm }{ marginparwidth = \marginwidth }
+
+  \str_case:nnF { #3 } {
+    { land } { \setkeys { Gm }{ landscape } }
+    { port } { } % Geometry defaults to portrait
+  } { \msg_error:nnn { Pages }{ InvalidOrientation }{ #3 } }
+
+  % If not rotated
+  \tl_set:Nn \marginparsep { \dim_eval:n {
+    1in + \ifodd\thepage \evensidemargin \else \oddsidemargin \fi
+    % If rotated: below
+    % \headheight + \headsep + \topmargin - 1in
+  } }
+
+  \if_printed:TF  % If rotated
+    { \setkeys { Gm }{ layout v offset = \marginwidth } }
+    { \setkeys { Gm }{ layout v offset = 0mm          } }
+
+  \eject
+
+  \use:c { Gm \c_atsign_str process }
+  \use:c { Gm \c_atsign_str change layout }
+
+  \dim_set:cn { pdfpagewidth  }{ \paperwidth  }
+  \dim_set:cn { pdfpageheight }{ \paperheight }
+  \dim_add:cn { pdfpagewidth  }{ \marginwidth }  % Only if not rotated
+}
+
+
+% --- Restores the page size and orientation to A4 portait. Uses size
+%     comparison to reduce the number of calls required to `newgeometry`
+
+\NewDocumentCommand \restorepagesize { }{
+  \bool_lazy_and:nnF
+    { \dim_compare_p:nNn { \pdfpagewidth  }{ = }{ \c_pchng_refWidth_dim  } }
+    { \dim_compare_p:nNn { \pdfpageheight }{ = }{ \c_pchng_refHeight_dim } }
+    { \newpage\setpagesize{ A4 } }
+}
+
+% --- Create some basic page sizes
+
+\newpagesize { A4 }{ 297mm }{ 210mm }
+\newpagesize { A3 }{ 420mm }{ 297mm }
