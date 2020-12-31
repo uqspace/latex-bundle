@@ -8,7 +8,7 @@
 \ProvidesExplPackage
     {paperchange}                                              % - Name
     {2020/12/31}                                               % - Date
-    {2.0.0}                                                    % - Version
+    {2.0.1}                                                    % - Version
     {Allows for changing of paper size in pdfLaTeX}            % - Description
 
 \RequirePackage { geometry   }
@@ -68,22 +68,22 @@
     { The~`comments`~package~could~not~be~loaded }
 
 \cs_new:Nn \enable_landscape: {
-    \bool_if:nT { \l_is_printed_bool && !\is_landscape  }
+    \bool_if:nT { \l_is_printed_bool && !\l_is_landscape_bool  }
         { \cs_set:Nn \ensure_landscape: { \landscape } }
     \bool_gset_true:N \is_landscape
 }
 
 \cs_new:Nn \enable_portrait: {
-    \bool_if:nT { \l_is_printed_bool && \is_landscape }
+    \bool_if:nT { \l_is_printed_bool && \l_is_landscape_bool }
         { \cs_set:Nn \ensure_portrait: { \endlandscape } }
-    \bool_gset_false:N \is_landscape
+    \bool_gset_false:N \l_is_landscape_bool
 }
 
 \cs_new:Nn \ensure_landscape: { \relax }
 \cs_new:Nn \ensure_portrait:  { \relax }
 
 \prg_new_conditional:Nnn \if_rotated: { T, F, TF }{
-    \bool_if:nTF { \l_is_printed_bool && \is_landscape }
+    \bool_if:nTF { \l_is_printed_bool && \l_is_landscape_bool }
         { \prg_return_true:  }
         { \prg_return_false: }
 }
