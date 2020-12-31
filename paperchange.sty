@@ -1,65 +1,98 @@
 \NeedsTeXFormat{LaTeX2e}
 \RequirePackage{expl3,xparse,l3keys2e}
-\RequirePackage{geometry}
 
 %% ============================================================================
 %%                          ~~~ CLASS META-INFO ~~~
 %% ____________________________________________________________________________
 
 \ProvidesExplPackage
-  {paperchange}                                                 % - Name
-  {2020/05/19}                                                  % - Date
-  {1.0.0}                                                       % - Version
-  {Allows for changing of paper size in pdfLaTeX}               % - Description
+    {paperchange}                                              % - Name
+    {2020/12/31}                                               % - Date
+    {2.0.0}                                                    % - Version
+    {Allows for changing of paper size in pdfLaTeX}            % - Description
 
-\keys_define:nn { paper_options }{
-  margin .dim_gset:N = \defaultmargin,
-  margin .initial:n  = { 20 mm },
-  unknown .code:n = {
-    % \PassOptionsToClass{\CurrentOption}{article}
-  }
+\RequirePackage { geometry   }
+\RequirePackage { everypage  }
+\RequirePackage { changepage }
+
+\keys_define:nn { paper_change_options }{
+    margin-comments .bool_set:N = \g__paper_comments_bool,
+    margin-comments .default:n  = true,
+    margin-comments .initial:n  = false,
 }
 
-\ProcessKeysOptions { paper_options }
-
-\dim_const:Nn \c_pchng_refHeight_dim { \the\pdfpageheight }
-\dim_const:Nn \c_pchng_refWidth_dim  { \the\pdfpagewidth  }
-
-\prop_new:N \g_pchng_pages_prop
-
-\msg_new:nnn
-  { Pages }
-  { AlreadyDefined }
-  { The~page~size~#1~is~already~defined }
-\msg_new:nnn
-  { Pages }
-  { InvalidOrientation }
-  { Invalid~orientation~`#1`,~choose~`port`~or~`land` }
-
-
-\prg_new_conditional:Nnn \if_printed: { T, F, TF }{
-  \prg_return_false:
+\keys_define:nn { printing_option }{
+    printed .bool_set:N = \l_is_printed_bool,
+    printed .default:n  = true,
+    printed .initial:n  = false,
+    unknown .code:n     = {  }  % Ignore unknown keys
 }
 
-\dim_new:N  \marginwidth
-\dim_set:Nn \marginwidth { 50 mm }
+\keys_define:nn { extract_geometry }{
+    marginparwidth .dim_set:N = \g_comment_width_dim,
+    marginparsep   .dim_set:N = \g_comment_sep_dim,
+    unknown .code:n = { \setkeys { Gm }{ \l_keys_key_str=#1 } }
+}
+
+\ProcessKeysPackageOptions { paper_change_options }
+\ProcessKeysOptions        { printing_option      }
+
+\bool_if:nT \g__paper_comments_bool {
+    \RequirePackage { comments }
+    % Check if boolean variable is defined from `comments`
+    \bool_if_exist:NF \g_show_comments_bool {
+        \msg_warning:nnn { Pages }{ NoCommentsPackage }{ }
+        \bool_new:N \g_show_comments_bool
+    }
+
+    \bool_if:NT \g_show_comments_bool {
+        % Set default values
+        \keys_set:nn { extract_geometry }{
+            marginparwidth = 50 mm,
+            marginparsep   =  3 mm
+        }
+    }
+}
+
+\dim_const:Nn \c_paper_ref_height_dim { \the\pdfpageheight }
+\dim_const:Nn \c_paper_ref_width_dim  { \the\pdfpagewidth  }
+\bool_new:N   \l_is_landscape_bool
+
+\msg_new:nnn
+    { Pages }
+    { InvalidOrientation }
+    { Invalid~orientation~`#1`,~choose~`port`~or~`land` }
+\msg_new:nnn
+    { Pages }
+    { NoCommentsPackage }
+    { The~`comments`~package~could~not~be~loaded }
+
+\cs_new:Nn \enable_landscape: {
+    \bool_if:nT { \l_is_printed_bool && !\is_landscape  }
+        { \cs_set:Nn \ensure_landscape: { \landscape } }
+    \bool_gset_true:N \is_landscape
+}
+
+\cs_new:Nn \enable_portrait: {
+    \bool_if:nT { \l_is_printed_bool && \is_landscape }
+        { \cs_set:Nn \ensure_portrait: { \endlandscape } }
+    \bool_gset_false:N \is_landscape
+}
+
+\cs_new:Nn \ensure_landscape: { \relax }
+\cs_new:Nn \ensure_portrait:  { \relax }
+
+\prg_new_conditional:Nnn \if_rotated: { T, F, TF }{
+    \bool_if:nTF { \l_is_printed_bool && \is_landscape }
+        { \prg_return_true:  }
+        { \prg_return_false: }
+}
 
 
-% --- Define a new pagesize
-
-\NewDocumentCommand \newpagesize { mmm }{
-  % Sort the dimensions; a <- short, b <- long
-  \dim_set:Nn \l_tmpa_dim { \dim_min:nn { #2 } { #3 } }
-  \dim_set:Nn \l_tmpb_dim { \dim_max:nn { #2 } { #3 } }
-  % Add dimensions to comma list
-  \clist_clear:N \l_tmpa_clist
-  \exp_args:NNV \clist_put_right:Nn \l_tmpa_clist { \dim_use:N \l_tmpa_dim }
-  \exp_args:NNV \clist_put_right:Nn \l_tmpa_clist { \dim_use:N \l_tmpb_dim }
-  % Raise warning if page size already defined
-  \prop_if_in:NnT \g_pchng_pages_prop { #1 }
-    { \msg_warning:nnn { Pages }{ AlreadyDefined }{ #1 } }
-  % Put page size into global property list
-  \exp_args:NNnV \prop_gput:Nnn \g_pchng_pages_prop { #1 } \l_tmpa_clist
+\cs_new:Nn \dim_swap:NN {
+    \dim_set_eq:cN { l_tmpa_dim }{ #1 }
+    \dim_set_eq:NN { #1 }{ #2 }
+    \dim_set_eq:Nc { #2 }{ l_tmpa_dim }
 }
 
 
@@ -68,38 +101,54 @@
 %     'port' or 'land' for portrait and landscape respectively. Default is
 %     'port'.
 
-\NewDocumentCommand \setpagesize { O{} m !O{port} }{
-  \str_case:nnF { #2 } {
-    { A4 } { \setkeys { Gm }{ paper = a4paper } }
-    { A3 } { \setkeys { Gm }{ paper = a3paper } }
-  } {  }  % Only hardcode these pages in for now
+\NewDocumentCommand \setpagesize { O{ } m !O{ port } }{
+    % Extract marginpar[width|sep], do not pass through remaining keys
+    \keys_set_known:nn { extract_geometry }{ #1 }
 
-  \setkeys { Gm }{ marginparwidth = \marginwidth }
+    \str_case:nnF { #2 } {
+        { A4 } { \setkeys { Gm }{ paper = a4paper } }
+        { A3 } { \setkeys { Gm }{ paper = a3paper } }
+    } {  }  % Only hardcode these pages in for now
 
-  \str_case:nnF { #3 } {
-    { land } { \setkeys { Gm }{ landscape } }
-    { port } { } % Geometry defaults to portrait
-  } { \msg_error:nnn { Pages }{ InvalidOrientation }{ #3 } }
+    \str_case:nnF { #3 } {
+        { land } { \setkeys { Gm }{ landscape } \enable_landscape: }
+        { port } { \setkeys { Gm }{ portrait  } \enable_portrait:  }
+    } { \msg_error:nnn { Pages }{ InvalidOrientation }{ #3 } }
 
-  % If not rotated
-  \tl_set:Nn \marginparsep { \dim_eval:n {
-    1in + \ifodd\thepage \evensidemargin \else \oddsidemargin \fi
-    % If rotated: below
-    % \headheight + \headsep + \topmargin - 1in
-  } }
+    \dim_set:Nn \marginparwidth { \g_comment_width_dim - 2\g_comment_sep_dim }
 
-  \if_printed:TF  % If rotated
-    { \setkeys { Gm }{ layout v offset = \marginwidth } }
-    { \setkeys { Gm }{ layout v offset = 0mm          } }
+    \tl_set:Nn \marginparsep { \dim_eval:n {
+        1in + \g_comment_sep_dim
+        \if_rotated:TF
+            { + \headheight + \headsep + \topmargin - \g_comment_width_dim }
+            { + \ifoddpage \evensidemargin \else \oddsidemargin \fi   }
+    } }
 
-  \eject
+    \if_rotated:TF  % If rotated
+        { \setkeys { Gm }{ layout v offset = \g_comment_width_dim } }
+        { \setkeys { Gm }{ layout v offset = 0mm } }
 
-  \use:c { Gm \c_atsign_str process }
-  \use:c { Gm \c_atsign_str change layout }
+    % Single execution of tl
+    \ensure_landscape:
+    \cs_set:Nn \ensure_landscape: { \relax }
 
-  \dim_set:cn { pdfpagewidth  }{ \paperwidth  }
-  \dim_set:cn { pdfpageheight }{ \paperheight }
-  \dim_add:cn { pdfpagewidth  }{ \marginwidth }  % Only if not rotated
+    % Call internal `geometry` macros to apply the changes
+    \use:c { Gm \c_atsign_str process }
+    \use:c { Gm \c_atsign_str change layout }
+
+    % Single execution of tl
+    \ensure_portrait:
+    \cs_set:Nn \ensure_portrait: { \relax }
+
+    \dim_set:cn { pdfpagewidth  }{ \paperwidth  }
+    \dim_set:cn { pdfpageheight }{ \paperheight }
+    \dim_add:cn { pdfpagewidth  }{ \g_comment_width_dim }
+
+    % Swap dimensions to rotate
+    \if_rotated:T {
+        \dim_swap:NN { \textwidth    }{ \textheight    }
+        \dim_swap:NN { \pdfpagewidth }{ \pdfpageheight }
+    }
 }
 
 
@@ -107,13 +156,23 @@
 %     comparison to reduce the number of calls required to `newgeometry`
 
 \NewDocumentCommand \restorepagesize { }{
-  \bool_lazy_and:nnF
-    { \dim_compare_p:nNn { \pdfpagewidth  }{ = }{ \c_pchng_refWidth_dim  } }
-    { \dim_compare_p:nNn { \pdfpageheight }{ = }{ \c_pchng_refHeight_dim } }
-    { \newpage\setpagesize{ A4 } }
+    \bool_lazy_and:nnF
+        { \dim_compare_p:nNn { \pdfpagewidth  }{ = }{ \c_paper_ref_width_dim  } }
+        { \dim_compare_p:nNn { \pdfpageheight }{ = }{ \c_paper_ref_height_dim } }
+        { \setpagesize{ A4 } }
 }
 
-% --- Create some basic page sizes
 
-\newpagesize { A4 }{ 297mm }{ 210mm }
-\newpagesize { A3 }{ 420mm }{ 297mm }
+\bool_if:nT \g_show_comments_bool {
+    \AddEverypageHook {
+        % Draw an `edge` to the page, and add a shadow for the comment gutter
+        \begin { tikzpicture }[ overlay, remember~picture ]
+            \if_rotated:TF
+                { \begin { scope }[ transform~canvas={shift={( current~page . south~west )}, cm={ 0,1,1,0,(0,0) }} ] }
+                { \begin { scope }[ transform~canvas={shift={( current~page . south~west )}} ] }
+                \shade [ left~color=black!20 ] ( \paperwidth, 0mm ) rectangle +( 2mm, \paperheight );
+                \draw  [      color=black!30 ] ( \paperwidth, 0mm )        -- +( 0mm, \paperheight );
+            \end { scope }
+        \end { tikzpicture }
+    }
+}
