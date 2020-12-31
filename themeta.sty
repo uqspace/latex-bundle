@@ -1,8 +1,8 @@
 \NeedsTeXFormat{LaTeX2e}
 \RequirePackage{expl3,xparse}
 
-\ProvidesExplPackage {themeta}{ 2020/06/17 }{ 1.1.0 }
-  { Allows meta info to be stored and used akin to author and title. }
+\ProvidesExplPackage {themeta}{ 2020/06/17 }{ 1.1.2 }
+    { Allows meta info to be stored and used akin to author and title. }
 
 \RequirePackage { xspace }
 
@@ -10,16 +10,16 @@
 \seq_new:N  \g__meta_prefix_seq
 
 \msg_new:nnn
-  { themeta }
-  { not~defined }
-  { Key~`#1`~used~on~\msg_line_context:,~but~has~not~been~defined }
+    { themeta }
+    { not~defined }
+    { Key~`#1`~used~on~\msg_line_context:,~but~has~not~been~defined }
 
 % --- Takes a list of key-value arguments, and assigns these within the
 %     internal dictionary. Key-value arguments can be nested.
 
 \NewDocumentEnvironment { setup }{ +b }
-  { \keyval_parse:NNn \use_none:n \meta_subset:nn { #1 } }
-  { }
+    { \keyval_parse:NNn \use_none:n \meta_subset:nn { #1 } }
+    { }
 
 
 % --- Take a single 'meta' value, and add into the dictionary
@@ -66,16 +66,16 @@
 %     Raise an error if the key doesn't exist.
 
 \NewDocumentCommand \The { o m }{
-  \prop_get:NnNTF \g__meta_dict_prop { #2 } \l_tmpa_tl
-    { \tl_use:N \l_tmpa_tl }
-    { \IfValueTF { #1 }{ #1 }
-      { \msg_warning:nnn { themeta }{ not~defined }{ #2 } ??? }
-    }  % <- Throw error message?
-  \xspace
+    \prop_get:NnNTF \g__meta_dict_prop { #2 } \l_tmpa_tl
+        { \tl_use:N \l_tmpa_tl }
+        { \IfValueTF { #1 }{ #1 }
+            { \msg_warning:nnn { themeta }{ not~defined }{ #2 } ??? }
+        }  % <- Throw error message?
+    \xspace
 }
 
 \NewDocumentCommand \ifThe { m }{
-  \prop_get:NnNTF \g__meta_dict_prop { #1 } \l_tmpa_tl
-    { \iftrue }
-    { \iffalse }
+    \prop_get:NnNTF \g__meta_dict_prop { #1 } \l_tmpa_tl
+        { \iftrue }
+        { \iffalse }
 }
