@@ -1,0 +1,64 @@
+\NeedsTeXFormat{LaTeX2e}
+\RequirePackage{expl3,xparse}
+
+\ProvidesExplPackage {comments}{ 2020/04/13 }{ 1.0.0 }
+  { Provides a basic commenting system for LaTeX documents in the margin. }
+
+\RequirePackage { soul      }
+\RequirePackage { sidenotes }
+\RequirePackage { silence   }
+\RequirePackage { xcolor    }
+
+\keys_define:nn { comment_options }{
+    comments .bool_set:N = \g_show_comments_bool,
+    comments .default:n  = true,
+    comments .initial:n  = false,
+}
+
+\ProcessKeysOptions { comment_options }
+
+\definecolor { correction  }{ HTML }{ ff5757 }
+\definecolor { suggestion  }{ HTML }{ ffab57 }
+\definecolor { information }{ HTML }{ 57abff }
+
+% Remove that annoying warning
+\WarningFilter { latex }{ Marginpar on page }
+
+\NewDocumentCommand \comment { s t{!} m !o }{
+
+    \bool_if:nTF { !\g_show_comments_bool }{ #4 }{
+
+        \colorlet { comment }{ suggestion }
+        \setul { 0.3ex }{ 0.3ex }
+
+        \IfBooleanT { #1 }{ \colorlet { comment }{ information } }
+        \IfBooleanT { #2 }{
+            \colorlet { comment }{ correction }
+            \setul { -0.7ex }{ 0.3ex }
+        }
+
+        \IfValueT { #4 }{ \setulcolor { comment } \textul { #4 } }
+        \mode_if_horizontal:T {
+            \sidenotetext
+            [ \color{ comment } { \bfseries \thesidenote } ]
+            { \raggedright \color{ comment } { #3 } }
+        }
+
+        \rlap{
+            \kern-0.2ex
+            \sidenotemark [ \color{ comment } { \bfseries \thesidenote } ]
+        }
+        \refstepcounter { sidenote }
+
+    }
+}
+
+\NewDocumentCommand \weightedSection { s m O{#4} m }{
+  \IfBooleanTF { #1 }
+    { \section*      { \comment*{ #2 }[ #4 ] } }
+    { \section [ #3 ]{ \comment*{ #2 }[ #4 ] } }
+}
+
+\NewDocumentCommand \DisableComments { }{
+  \RenewDocumentCommand \comment { s t{!} m !O{} }{ ##4 }
+}
