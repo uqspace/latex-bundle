@@ -142,7 +142,9 @@
 
     \dim_set:cn { pdfpagewidth  }{ \paperwidth  }
     \dim_set:cn { pdfpageheight }{ \paperheight }
-    \dim_add:cn { pdfpagewidth  }{ \g_comment_width_dim }
+    \bool_if:NT \g_show_comments_bool {
+        \dim_add:cn { pdfpagewidth  }{ \g_comment_width_dim }
+    }
 
     % Swap dimensions to rotate
     \if_rotated:T {
