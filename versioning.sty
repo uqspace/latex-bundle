@@ -1,0 +1,82 @@
+\NeedsTeXFormat{LaTeX2e}
+\RequirePackage{expl3,xparse,etoolbox}
+
+\ProvidesExplPackage {versioning}{ 2020/04/12 }{ 1.0.0 }
+  { Provides a versioning table for LaTeX documents. }
+
+\RequirePackage { array    }
+\RequirePackage { float    }
+\RequirePackage { booktabs }
+\RequirePackage { makecell }
+
+\newcounter { major version }
+\newcounter { minor version }[ major version ]
+\newcounter { patch version }[ minor version ]
+
+\str_new:N \g__ver_date_str
+
+\NewDocumentCommand \daterevised { }{
+  \str_use:N \g__ver_date_str
+}
+
+\NewDocumentCommand \theversion { }{
+  \arabic{ major version } . \arabic{ minor version } . \arabic{ patch version }
+}
+
+\preto\thepatchversion{\themajorversion.\theminorversion.}
+
+\NewDocumentEnvironment { version }{ }
+  {
+    \addtocounter   { patch version }{ -1 }
+    \refstepcounter { patch version }
+  }{ }
+
+\NewDocumentEnvironment { versions }{ O{ 0 } }
+  {
+    \setversion { #1 }
+    \clist_map_function:nN { major, minor, patch } \__ver_create_commands:n
+
+    \begin{table}[H]\centering\small\begin{tabular}{cclp{6cm}}
+    \toprule
+    \thead{Revision} & \thead{Date} & \thead{Author(s)} & \thead{Description} \\
+  }
+  {
+    \bottomrule
+    \end{tabular}\end{table}
+    \begin{version}\label{ver:latest}\end{version}
+    \clist_map_function:nN { major, minor, patch } \cs_undefine:c
+  }
+
+\NewDocumentCommand \setversion { m }
+  {
+    \seq_set_split:Nnn \l_tmpa_seq . { #1 }
+    % TODO: Check if length > 3 for error checking
+    \clist_map_inline:nn { major, minor, patch }{
+      \seq_pop_left:NNTF \l_tmpa_seq \l_tmpa_tl
+        { \__ver_set_version:nn { ##1 }{ \tl_head:N \l_tmpa_tl } }
+        { \clist_map_break: }
+    }
+  }
+
+\cs_new:Nn \__ver_set_version:nn
+  {
+    % TODO: Error checking
+    \setcounter { #1 version }{ #2 }
+  }
+
+\cs_new:Nn \__ver_create_commands:n {
+  \exp_args:NNf \exp_args:Nnnf
+  \NewDocumentCommand { \use:c{ #1 } }{ O{1} }{ \__ver_command_template:n{ #1 } }
+}
+
+\cs_new:Nn \__ver_command_template:n {
+  \addtocounter { #1 version }{ \int_eval:w ##1 - 1 }
+  \stepcounter  { #1 version }
+  \texttt{ \theversion } & \__ver_parse_commit:w
+}
+
+\cs_new:Npn \__ver_parse_commit:w #1 & #2 & #3 \\ {
+  \regex_extract_once:nnNT { (\S.+\S) }{ #1 } \l_tmpa_seq
+    { \exp_args:NNx \str_gset:Nn \g__ver_date_str { \seq_item:Nn \l_tmpa_seq 1 } }
+  #1 & #2 & #3 \\
+}
