@@ -12,8 +12,15 @@
     {Allows for changing of paper size in pdfLaTeX}            % - Description
 
 \RequirePackage { geometry   }
-\RequirePackage { everypage  }
 \RequirePackage { changepage }
+% Load everypage package for pre-2020 TeXLive distributions
+\cs_if_exist:cTF { AddToHook }{ 
+    \NewDocumentCommand \AddEverypageHook { m }{
+        \AddToHook { shipout/background }{ \put ( 1in,-1in ){ #1 } }
+    }
+}{
+    \RequirePackage { everypage }
+}
 
 \keys_define:nn { paper_change_options }{
     margin-comments .bool_set:N = \g__paper_comments_bool,
